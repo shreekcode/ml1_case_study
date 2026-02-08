@@ -1,0 +1,74 @@
+======================================================================
+Improved Neural Network Classifier - 2 Hidden Layers
+======================================================================
+
+[1/5] Loading training data...
+Training data shape: (78425, 514)
+Features shape: (78425, 512)
+Target shape: (78425,)
+
+[2/5] Training Improved Neural Network model (2 Hidden Layers)...
+Selecting 150 features out of 512 using correlation...
+Feature selection complete. Using 150 features.
+Standardizing features...
+Training samples: 66662, Validation samples: 11763
+Class distribution: {np.int64(0): np.int64(54082), np.int64(1): np.int64(8156), np.int64(2): np.int64(3088), np.int64(3): np.int64(1336)}
+Class weights: {np.int64(0): np.float64(0.308), np.int64(1): np.float64(2.043), np.int64(2): np.float64(5.397), np.int64(3): np.float64(12.474)}
+
+Training Deep Neural Network (2 Hidden Layers):
+  Architecture: Input(150) → Hidden1(256) → Hidden2(128) → Output(4)
+  Learning rate: 0.01
+  L2 lambda: 0.01
+  Batch size: 256
+  Max iterations: 500
+  Epoch 50/500 - Train Loss: 1.2566, Val Loss: 1.2250
+  Epoch 100/500 - Train Loss: 0.9164, Val Loss: 0.9901
+  Epoch 150/500 - Train Loss: 0.8806, Val Loss: 0.9957
+
+Early stopping at epoch 166
+Training complete!
+
+[3/5] Evaluating on final validation set...
+
+Validation F1 Scores by Class:
+  Class 0: Precision=0.9757, Recall=0.8103, F1=0.8854
+  Class 1: Precision=0.3981, Recall=0.6993, F1=0.5074
+  Class 2: Precision=0.5424, Recall=0.8879, F1=0.6734
+  Class 3: Precision=0.5729, Recall=0.9821, F1=0.7237
+
+>>> Validation Macro F1 Score: 0.6975
+✅ F1 Score > 0.5 - Eligible for 5 bonus points!
+Validation Accuracy: 0.8036 (for reference only)
+
+[4/5] Generating predictions for test set...
+Test data shape: (19607, 512)
+
+[5/5] Creating submission file...
+
+✅ Submission file created: submission.csv
+   Shape: (19607, 2)
+   Sample predictions:
+   index  Predicted
+0  97878          1
+1  43628          2
+2   9712          1
+3  80948          0
+4  19405          0
+5  37225          0
+6  67800          1
+7  46215          0
+8  33684          0
+9    963          0
+
+Prediction value counts:
+  Class 0: 13064 (66.63%)
+  Class 1: 4357 (22.22%)
+  Class 2: 1630 (8.31%)
+  Class 3: 556 (2.84%)
+
+📊 Training history plot saved: training_history.png
+
+======================================================================
+Neural Network Training Complete!
+======================================================================
+

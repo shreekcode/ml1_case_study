@@ -54,7 +54,7 @@ def calculate_f1_macro(y_true, y_pred, num_classes=4):
 
 def main():
     print("="*70)
-    print("Neural Network Classifier - Industrial Signal Quality Classification")
+    print("Improved Neural Network Classifier - 2 Hidden Layers")
     print("="*70)
     
     # Load training data
@@ -70,10 +70,11 @@ def main():
     print(f"Features shape: {X_full.shape}")
     print(f"Target shape: {y_full.shape}")
     
-    # Train model (with internal validation split for early stopping)
-    print("\n[2/5] Training Neural Network model...")
+    # Train model (with internal validation split for early    # Train model
+    print("\n[2/5] Training Improved Neural Network model (2 Hidden Layers)...")
     model = Model(
-        hidden_units=128,
+        hidden_units_1=256,  # First hidden layer
+        hidden_units_2=128,  # Second hidden layer
         learning_rate=0.01,
         lambda_reg=0.01,
         n_iterations=500,

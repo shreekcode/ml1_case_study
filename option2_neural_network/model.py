@@ -1,20 +1,23 @@
 """
-Neural Network Classifier for Industrial Signal Quality Classification
+Improved Neural Network Classifier - 2 Hidden Layers
 
-Model: Neural Network with Softmax Output Layer
+Model: Deep Neural Network with Softmax Output Layer
 
-This implementation uses a feedforward neural network with softmax activation
-for multi-class classification, as covered in Lecture 06 (Optimization in 
-Neural Networks) and Lecture 12 (Deep Learning).
+This is an improved version with 2 hidden layers for better feature learning.
 
-Features:
+Improvements over Option 2:
+- ✅ Two hidden layers (256 → 128 neurons) instead of one (128 neurons)
+- Deeper architecture learns more complex, hierarchical features
+- Better performance on minority classes expected
+
+All other features remain:
 - Multi-class classification (4 classes) via softmax
-- L2 regularization (weight decay) for preventing overfitting
+- L2 regularization (weight decay)
 - Early stopping based on validation loss
 - Feature scaling (standardization)
 - Feature selection using correlation
 - Class-weighted loss for handling imbalance
-- Gradient descent with backpropagation
+- Mini-batch gradient descent with backpropagation
 """
 
 import numpy as np
@@ -28,17 +31,18 @@ from base_class import BaseMLModel
 
 
 class Model(BaseMLModel):
-    # Model: Neural Network with Softmax Output and L2 Regularization
+    # Model: Deep Neural Network with 2 Hidden Layers, Softmax Output, and L2 Regularization
     
-    def __init__(self, hidden_units=128, learning_rate=0.01, lambda_reg=0.01,
-                 n_iterations=1000, batch_size=256, early_stopping_patience=20,
-                 n_features_to_select=150, use_feature_selection=True,
-                 validation_split=0.15, random_state=42):
+    def __init__(self, hidden_units_1=256, hidden_units_2=128, learning_rate=0.01, 
+                 lambda_reg=0.01, n_iterations=1000, batch_size=256, 
+                 early_stopping_patience=20, n_features_to_select=150,
+                 use_feature_selection=True, validation_split=0.15, random_state=42):
         """
-        Initialize Neural Network Classifier
+        Initialize Deep Neural Network Classifier (2 Hidden Layers)
         
         Args:
-            hidden_units: Number of hidden layer neurons
+            hidden_units_1: Number of neurons in first hidden layer
+            hidden_units_2: Number of neurons in second hidden layer
             learning_rate: Learning rate for gradient descent
             lambda_reg: L2 regularization strength
             n_iterations: Maximum number of training iterations
@@ -50,7 +54,8 @@ class Model(BaseMLModel):
             random_state: Random seed for reproducibility
         """
         super().__init__()
-        self.hidden_units = hidden_units
+        self.hidden_units_1 = hidden_units_1
+        self.hidden_units_2 = hidden_units_2
         self.learning_rate = learning_rate
         self.lambda_reg = lambda_reg
         self.n_iterations = n_iterations
@@ -63,11 +68,13 @@ class Model(BaseMLModel):
         
         self.n_classes = 4
         
-        # Model parameters
-        self.W1 = None  # Input to hidden weights
-        self.b1 = None  # Hidden layer bias
-        self.W2 = None  # Hidden to output weights
-        self.b2 = None  # Output layer bias
+        # Model parameters (3 layers now instead of 2)
+        self.W1 = None  # Input to hidden1 weights
+        self.b1 = None  # Hidden1 layer bias
+        self.W2 = None  # Hidden1 to hidden2 weights
+        self.b2 = None  # Hidden2 layer bias
+        self.W3 = None  # Hidden2 to output weights
+        self.b3 = None  # Output layer bias
         
         # Feature preprocessing
         self.selected_features = None
@@ -82,16 +89,7 @@ class Model(BaseMLModel):
         self.val_losses = []
         
     def _softmax(self, z):
-        """
-        Softmax activation function
-        
-        Args:
-            z: Linear combinations (n_samples, n_classes)
-            
-        Returns:
-            Softmax probabilities (n_samples, n_classes)
-        """
-        # Subtract max for numerical stability
+        """Softmax activation function"""
         exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
         return exp_z / np.sum(exp_z, axis=1, keepdims=True)
     
@@ -111,17 +109,7 @@ class Model(BaseMLModel):
         return one_hot
     
     def _cross_entropy_loss(self, y_true_onehot, y_pred_probs, sample_weights=None):
-        """
-        Cross-entropy loss with L2 regularization
-        
-        Args:
-            y_true_onehot: True labels (one-hot encoded)
-            y_pred_probs: Predicted probabilities
-            sample_weights: Sample weights for class imbalance
-            
-        Returns:
-            Loss value
-        """
+        """Cross-entropy loss with L2 regularization"""
         n_samples = len(y_true_onehot)
         
         # Clip probabilities to avoid log(0)
@@ -133,44 +121,49 @@ class Model(BaseMLModel):
         
         ce_loss = -np.sum(sample_weights.reshape(-1, 1) * y_true_onehot * np.log(y_pred_probs)) / np.sum(sample_weights)
         
-        # L2 regularization (weight decay)
-        l2_reg = (self.lambda_reg / 2) * (np.sum(self.W1 ** 2) + np.sum(self.W2 ** 2))
+        # L2 regularization (weight decay) - now for 3 weight matrices
+        l2_reg = (self.lambda_reg / 2) * (np.sum(self.W1 ** 2) + np.sum(self.W2 ** 2) + np.sum(self.W3 ** 2))
         
         return ce_loss + l2_reg
     
     def _forward_pass(self, X):
         """
-        Forward propagation
+        Forward propagation through 2 hidden layers
         
         Args:
             X: Input features (n_samples, n_features)
             
         Returns:
-            a1 (hidden activations), a2 (output probabilities)
+            a1, a2 (hidden activations), a3 (output probabilities)
         """
-        # Input to hidden
+        # Input to hidden layer 1
         z1 = X @ self.W1 + self.b1
         a1 = self._relu(z1)
         
-        # Hidden to output
+        # Hidden layer 1 to hidden layer 2
         z2 = a1 @ self.W2 + self.b2
-        a2 = self._softmax(z2)
+        a2 = self._relu(z2)
         
-        return a1, a2
+        # Hidden layer 2 to output
+        z3 = a2 @ self.W3 + self.b3
+        a3 = self._softmax(z3)
+        
+        return a1, a2, a3
     
-    def _backward_pass(self, X, y_onehot, a1, a2, sample_weights=None):
+    def _backward_pass(self, X, y_onehot, a1, a2, a3, sample_weights=None):
         """
-        Backward propagation (compute gradients)
+        Backward propagation (compute gradients) for 2 hidden layers
         
         Args:
             X: Input features
             y_onehot: True labels (one-hot)
-            a1: Hidden layer activations
-            a2: Output probabilities
+            a1: First hidden layer activations
+            a2: Second hidden layer activations
+            a3: Output probabilities
             sample_weights: Sample weights
             
         Returns:
-            Gradients for W1, b1, W2, b2
+            Gradients for W1, b1, W2, b2, W3, b3
         """
         n_samples = len(X)
         
@@ -178,79 +171,55 @@ class Model(BaseMLModel):
             sample_weights = np.ones(n_samples)
         
         # Output layer gradients
-        dz2 = a2 - y_onehot  # Cross-entropy + softmax derivative
-        dz2 = dz2 * sample_weights.reshape(-1, 1) / np.sum(sample_weights)
+        dz3 = a3 - y_onehot  # Cross-entropy + softmax derivative
+        dz3 = dz3 * sample_weights.reshape(-1, 1) / np.sum(sample_weights)
+        
+        dW3 = a2.T @ dz3 + self.lambda_reg * self.W3  # L2 regularization
+        db3 = np.sum(dz3, axis=0, keepdims=True)
+        
+        # Second hidden layer gradients
+        da2 = dz3 @ self.W3.T
+        dz2 = da2 * self._relu_derivative(a1 @ self.W2 + self.b2)
         
         dW2 = a1.T @ dz2 + self.lambda_reg * self.W2  # L2 regularization
         db2 = np.sum(dz2, axis=0, keepdims=True)
         
-        # Hidden layer gradients
+        # First hidden layer gradients
         da1 = dz2 @ self.W2.T
         dz1 = da1 * self._relu_derivative(X @ self.W1 + self.b1)
         
         dW1 = X.T @ dz1 + self.lambda_reg * self.W1  # L2 regularization
         db1 = np.sum(dz1, axis=0, keepdims=True)
         
-        return dW1, db1, dW2, db2
+        return dW1, db1, dW2, db2, dW3, db3
     
     def _select_features_by_correlation(self, X, y):
-        """
-        Select features based on correlation with target
-        
-        Args:
-            X: Features
-            y: Target labels
-            
-        Returns:
-            Selected feature indices
-        """
+        """Select features based on correlation with target"""
         n_features = X.shape[1]
         correlations = np.zeros(n_features)
         
         for i in range(n_features):
-            # Pearson correlation with target
             correlations[i] = np.abs(np.corrcoef(X[:, i], y)[0, 1])
         
-        # Handle NaN correlations (constant features)
         correlations = np.nan_to_num(correlations, nan=0)
         
-        # Select top features
         n_to_select = min(self.n_features_to_select, n_features)
         selected_indices = np.argsort(correlations)[-n_to_select:]
         
         return selected_indices
     
     def _standardize_features(self, X, fit=True):
-        """
-        Standardize features to zero mean and unit variance
-        
-        Args:
-            X: Features
-            fit: If True, compute mean and std; if False, use stored values
-            
-        Returns:
-            Standardized features
-        """
+        """Standardize features to zero mean and unit variance"""
         if fit:
             self.feature_mean = np.mean(X, axis=0)
             self.feature_std = np.std(X, axis=0)
-            # Avoid division by zero
             self.feature_std[self.feature_std == 0] = 1
         
         X_scaled = (X - self.feature_mean) / self.feature_std
         return X_scaled
     
     def fit(self, X, y):
-        """
-        Train the Neural Network model
-        
-        Args:
-            X: Training features (n_samples, n_features)
-            y: Training labels (n_samples,)
-            
-        Returns:
-            self
-        """
+        """Train the Deep Neural Network model"""
         # Input validation
         if not isinstance(X, np.ndarray):
             raise TypeError("X must be a numpy array")
@@ -309,14 +278,16 @@ class Model(BaseMLModel):
         
         # Initialize weights (He initialization for ReLU)
         n_input = X_train.shape[1]
-        self.W1 = np.random.randn(n_input, self.hidden_units) * np.sqrt(2.0 / n_input)
-        self.b1 = np.zeros((1, self.hidden_units))
-        self.W2 = np.random.randn(self.hidden_units, self.n_classes) * np.sqrt(2.0 / self.hidden_units)
-        self.b2 = np.zeros((1, self.n_classes))
+        self.W1 = np.random.randn(n_input, self.hidden_units_1) * np.sqrt(2.0 / n_input)
+        self.b1 = np.zeros((1, self.hidden_units_1))
+        self.W2 = np.random.randn(self.hidden_units_1, self.hidden_units_2) * np.sqrt(2.0 / self.hidden_units_1)
+        self.b2 = np.zeros((1, self.hidden_units_2))
+        self.W3 = np.random.randn(self.hidden_units_2, self.n_classes) * np.sqrt(2.0 / self.hidden_units_2)
+        self.b3 = np.zeros((1, self.n_classes))
         
         # Training loop
-        print(f"\nTraining Neural Network:")
-        print(f"  Hidden units: {self.hidden_units}")
+        print(f"\nTraining Deep Neural Network (2 Hidden Layers):")
+        print(f"  Architecture: Input({n_input}) → Hidden1({self.hidden_units_1}) → Hidden2({self.hidden_units_2}) → Output({self.n_classes})")
         print(f"  Learning rate: {self.learning_rate}")
         print(f"  L2 lambda: {self.lambda_reg}")
         print(f"  Batch size: {self.batch_size}")
@@ -336,23 +307,27 @@ class Model(BaseMLModel):
                 batch_weights = sample_weights[batch_idx]
                 
                 # Forward pass
-                a1, a2 = self._forward_pass(X_batch)
+                a1, a2, a3 = self._forward_pass(X_batch)
                 
                 # Backward pass
-                dW1, db1, dW2, db2 = self._backward_pass(X_batch, y_batch_onehot, a1, a2, batch_weights)
+                dW1, db1, dW2, db2, dW3, db3 = self._backward_pass(
+                    X_batch, y_batch_onehot, a1, a2, a3, batch_weights
+                )
                 
                 # Update weights
                 self.W1 -= self.learning_rate * dW1
                 self.b1 -= self.learning_rate * db1
                 self.W2 -= self.learning_rate * dW2
                 self.b2 -= self.learning_rate * db2
+                self.W3 -= self.learning_rate * dW3
+                self.b3 -= self.learning_rate * db3
             
             # Compute losses
-            _, train_probs = self._forward_pass(X_train)
+            _, _, train_probs = self._forward_pass(X_train)
             train_loss = self._cross_entropy_loss(y_train_onehot, train_probs, sample_weights)
             self.train_losses.append(train_loss)
             
-            _, val_probs = self._forward_pass(X_val)
+            _, _, val_probs = self._forward_pass(X_val)
             val_loss = self._cross_entropy_loss(y_val_onehot, val_probs)
             self.val_losses.append(val_loss)
             
@@ -363,6 +338,7 @@ class Model(BaseMLModel):
                 # Save best weights
                 best_W1, best_b1 = self.W1.copy(), self.b1.copy()
                 best_W2, best_b2 = self.W2.copy(), self.b2.copy()
+                best_W3, best_b3 = self.W3.copy(), self.b3.copy()
             else:
                 patience_counter += 1
             
@@ -374,21 +350,14 @@ class Model(BaseMLModel):
                 # Restore best weights
                 self.W1, self.b1 = best_W1, best_b1
                 self.W2, self.b2 = best_W2, best_b2
+                self.W3, self.b3 = best_W3, best_b3
                 break
         
         print("Training complete!")
         return self
     
     def predict(self, X):
-        """
-        Make predictions on new data
-        
-        Args:
-            X: Input features (n_samples, n_features)
-            
-        Returns:
-            Predicted class labels (n_samples,)
-        """
+        """Make predictions on new data"""
         # Input validation
         if not isinstance(X, np.ndarray):
             raise TypeError("X must be a numpy array")
@@ -405,7 +374,7 @@ class Model(BaseMLModel):
         X = self._standardize_features(X, fit=False)
         
         # Forward pass
-        _, probs = self._forward_pass(X)
+        _, _, probs = self._forward_pass(X)
         
         # Return class with highest probability
         predictions = np.argmax(probs, axis=1)

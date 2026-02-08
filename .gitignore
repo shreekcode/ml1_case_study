@@ -1,0 +1,19 @@
+#ignore lectures
+lectures/
+
+#ignore task markdown files
+general_information.md
+/README.md
+submission.md
+summary.md
+
+#ignore approaches
+option1_decision_tree/
+option4_ensemble/
+
+#ignore training files
+training_history.png
+training_output.log
+
+#ignore pycache
+__pycache__

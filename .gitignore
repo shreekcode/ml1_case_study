@@ -1,4 +1,5 @@
-#ignore lectures
+#ignore lectures and dataset
+dataset/
 lectures/
 
 #ignore task markdown files

@@ -8,10 +8,6 @@ general_information.md
 submission.md
 summary.md
 
-#ignore approaches
-option1_decision_tree/
-option4_ensemble/
-
 #ignore training files
 training_history.png
 training_output.log
